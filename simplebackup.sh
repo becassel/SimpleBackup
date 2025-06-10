@@ -59,12 +59,11 @@ sbup-config() {
 }
 
 
-# Write a configuration file for a specified key. Assumes that values have already been loaded.
+# Write a configuration file for a specified key. Assumes that values have
+# already been loaded for the following constants: SIMPLEBACKUP_SOURCE,
+# SIMPLEBACKUP_DESTINATION, SIMPLEBACKUP_FILTERS.
 # Arguments:
 #   $1 - The key of the configuration to write out.
-#   $2 - The source filepath.
-#   $3 - The destination filepath.
-#   $4 - Any exclusionary filters (an array).
 sbup-writeconfig() {
 	# Get the key, abort if not provided.
 	local key="${1}"
@@ -73,27 +72,15 @@ sbup-writeconfig() {
 		return 1
 	fi
 	local config_file="${SIMPLEBACKUP_CONFIG_DIR}/${key}"
-
-	# Get the source, abort if not provided.
-	local source="${2}"
-	if [[ -z "${source// }" ]]; then
-		echo "Source not provided. Aborting."
-		return 1
-	fi
-
-	# Get the destination, abort if not provided.
-	local destination="${3}"
-	if [[ -z "${destination// }" ]]; then
-		echo "Destination not provided. Aborting."
-		return 1
-	fi
-
+	
 	cat <<EOF > "${config_file}"
 #!bin/bash
 # Configuration values for the SimpleBackup script.
 
-SIMPLEBACKUP_SOURCE="${source}"
-SIMPLEBACKUP_DESTINATION="${destination}"
+$(declare -p SIMPLEBACKUP_SOURCE)
+$(declare -p SIMPLEBACKUP_DESTINATION)
+$(declare -p SIMPLEBACKUP_FILTERS)
+
 EOF
 
 	if [[ ${?} -ne 0 ]]; then
@@ -225,7 +212,15 @@ sbup-add() {
 		return 1
 	fi
 
-	sbup-writeconfig "${key}" "${source}" "${destination}"
+	# Set up env var context so write-config can print it out.
+	unset SIMPLEBACKUP_SOURCE
+	unset SIMPLEBACKUP_DESTINATION
+	unset SIMPLEBACKUP_FILTERS
+	declare -g SIMPLEBACKUP_SOURCE="${source}"
+	declare -g SIMPLEBACKUP_DESTINATION="${destination}"
+	declare -ga SIMPLEBACKUP_FILTERS=()
+
+	sbup-writeconfig "${key}"
 	if [[ ${?} -ne 0 ]]; then
 		return 1;
 	fi
