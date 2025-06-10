@@ -150,6 +150,8 @@ sbup-showconfig() {
 # Add a key to the SimpleBackup configuration.
 # Arguments:
 #   $1 - The name of the key to add to the configuration.
+#   $2 - The source directory to use for the key.
+#   $3 - The destination directory to use for the key.
 sbup-add() {
 	# Get the key, abort if not provided.
 	local key="${1}"
@@ -157,12 +159,30 @@ sbup-add() {
 		echo "Key not provided. Aborting."
 		return 1
 	fi
-	
 	local config_file="${SIMPLEBACKUP_CONFIG_DIR}/${key}"
+
+	local source="${2}"
+	if [[ -z "${source// }" ]]; then
+		echo "Source not provided. Aborting."
+		return 1
+	fi
+	
+	local destination="${3}"
+	if [[ -z "${destination// }" ]]; then
+		echo "Destination not provided. Aborting."
+		return 1
+	fi
 
 	if [[ ! -d "${SIMPLEBACKUP_CONFIG_DIR}" ]]; then
 		echo "SimpleBackup configuration directory \"${SIMPLEBACKUP_CONFIG_DIR}\" not found. Please run sbup-config. Aborting."
 		return 1;
+	fi
+    
+	# Abort if the user tries to point the source and destination to the same place.
+	# Note, we don't actually enforce that the source and destination exist at this point in time.
+	if [[ "${source}" -ef "${destination}" || "${source}" == "${destination}" ]]; then
+		echo "Source \"${source}\" and destination are identical. Aborting."
+		return 1
 	fi
 
 	# Check if the user wants to overwrite an existing key.
@@ -187,29 +207,6 @@ sbup-add() {
 				return 1
 				;;
 		esac
-	fi
-
-	local source
-	read -p "Enter the source directory for \"${key}\": " source
-	# Abort if no source was provided.
-	if [[ -z "${source// }" ]]; then
-		echo "New source not provided. Aborting."
-		return 1
-	fi
-
-	local destination
-	read -p "Enter the destination directory for \"${key}\": " destination
-	# Abort if no destination was provided.
-	if [[ -z "${destination// }" ]]; then
-		echo "New destination not provided. Aborting."
-		return 1
-	fi
-
-    # Abort if the user tries to point the source and destination to the same place.
-	# Note, we don't actually enforce that the source and destination exist at this point in time.
-	if [[ "${source}" -ef "${destination}" || "${source}" == "${destination}" ]]; then
-		echo "Source \"${source}\" and destination are identical. Aborting."
-		return 1
 	fi
 
 	# Set up env var context so write-config can print it out.
