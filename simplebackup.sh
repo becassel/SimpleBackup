@@ -258,7 +258,7 @@ sbup-save() {
 	fi
 
 	echo "Saving files for configuration \"${save_key}\"."
-	rsync -a --delete "${save_source}/" "${save_destination}/"
+	rsync -a --delete --exclude .git "${save_source}/" "${save_destination}/"
 	if [[ "${?}" -ne "0" ]]; then
 		echo "Saving files failed. Aborting."
 		return 1
@@ -309,7 +309,7 @@ sbup-load() {
 	fi
 
 	echo "Loading files for configuration \"${load_key}\"."
-	rsync -a --delete "${load_destination}/" "${load_source}/"
+	rsync -a --delete --exclude .git "${load_destination}/" "${load_source}/"
 	if [[ "${?}" -ne "0" ]]; then
 		echo "Loading files failed. Aborting."
 		return 1
