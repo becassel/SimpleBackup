@@ -16,12 +16,14 @@ this program.  If not, see <http://www.gnu.org/licenses/>.
 -->
 
 # SimpleBackup
+
 A simple script for backing up and restoring data from named directories.
 
-# Setup
+# Setup and Configuration
+
 The features provided in this script are all plain-old Bash. Several features
 use newer Bash functionalities (e.g. associative arrays and quoted variable
-expansion), so you will need Bash 4.4 or newer. The script itself was created
+expansion), so Bash 4.4 or newer is recommended. The script itself was created
 on the Windows Subsystem for Linux (WSL), although it is intended to be used in
 other environments as well (e.g. your favourite Linux distribution, your
 SteamDeck, Cygwin, your Macbook). I actually wrote this script in the first
@@ -43,9 +45,9 @@ need to restart your session after making this change:
 exec bash
 ```
 
-Next, run the setup command to generate a config file for the script.
-SimpleBackup will look for a configuration file in your home directory
-(`${HOME}/.simplebackupconfig`). The setup command is:
+Next, run the config command to generate a configuration directory for the
+script. SimpleBackup will look for its configuration files in this directory
+(`${HOME}/.simplebackup`):
 
 ```
 sbup-config
@@ -53,8 +55,8 @@ sbup-config
 
 # Use
 
-SimpleBackup adds entries to your configuration file by providing it with a
-key:
+SimpleBackup adds configuration files using keys. To create a new configuration
+file with a given key, use the add command:
 
 ```
 sbup-add mykey
@@ -62,7 +64,9 @@ sbup-add mykey
 
 Running this command will ask you to configure the key, e.g. by adding source
 and destination directories. Further interactions with the script will use this
-key to adjust the configuration, move files, etc.
+key to adjust the configuration, move files, etc. If the key already exists at
+creation time, you will be asked to either overwrite it (deleting all previous
+contents) or abort.
 
 You can remove an existing key and all of its associated configurations with
 the following command:
@@ -71,27 +75,33 @@ the following command:
 sbup-remove mykey
 ```
 
+You can see the contents of a particular key's configuration using the
+showconfig command:
+
+```
+sbup-showconfig mykey
+```
+
 ## Backing up Files
 
-To create a backup of files from a configured key, run:
+To create a backup of files for a configured key, run:
 
 ```
 sbup-save mykey
 ```
 
-If the destination directory is not empty, a warning prompt will be issued
-prior to continuing. Accepting the warning prompt will delete all files in the
-destination directory before copying any new ones.
+Saving is a destructive operation. Files that are not present in the source directory
+will be removed from the destination directory, unless they match a filter pattern.
 
-## Restore Files
+## Restoring Files
 
-To restore a backup of files from a configured key, run:
+To restore a backup of files for a configured key, run:
 
 ```
 sbup-load mykey
 ```
 
-If the source directory is not empty, a warning prompt will be issued
-prior to continuing. Accepting the warning prompt will delete all files in the
-source directory before copying the backed up.
+Loading is a destructive operation. Files that are not present in the
+destination directory will be removed from the source directory, unless they
+match a filter pattern.
 

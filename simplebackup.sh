@@ -18,47 +18,29 @@
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-SIMPLEBACKUP_CONFIG="${HOME}/.simplebackupconfig"
+SIMPLEBACKUP_CONFIG_DIR="${HOME}/.simplebackup"
 
 
-# Write the configuration file out. Assumes that values have already been loaded.
-sbup-writeconfig() {
-	cat <<EOF > "${SIMPLEBACKUP_CONFIG}"
-#!bin/bash
-# Configuration values for the SimpleBackup script.
-
-$(declare -p SIMPLEBACKUP_SOURCES)
-$(declare -p SIMPLEBACKUP_DESTINATIONS)
-
-EOF
-
-	if [[ ${?} -ne 0 ]]; then
-		echo "Error while writing SimpleBackup configuration file ${SIMPLEBACKUP_CONFIG}. Aborting."
-		return 1;
-	fi
-}
-
-
-# Create the user's configuration file. This must be run prior to using any
-# other commands.
+# Create the simple backup configuration directory. This must be run prior to
+# executing other commands.
 sbup-config() {
-	# Warn the user if the config already exists (and give them the option to abort).
-	if [[ -f "${SIMPLEBACKUP_CONFIG}" ]]; then
+	# Warn the user if the configuration directory already exists (and give them the option to abort).
+	if [[ -e "${SIMPLEBACKUP_CONFIG_DIR}" ]]; then
 		local yes_no
-		read -p "SimpleBackup configuration file ${SIMPLEBACKUP_CONFIG} already exists. Delete and overwrite [Y/N]? " -n 1 -r yes_no
+		read -p "SimpleBackup configuration directory \"${SIMPLEBACKUP_CONFIG_DIR}\" already exists. Delete and overwrite [Y/N]? " -n 1 -r yes_no
 		echo
 		case "${yes_no}" in
 			y|Y)
-				echo "Deleting existing SimpleBackup configuration file ${SIMPLEBACKUP_CONFIG}."
-				rm -f "${SIMPLEBACKUP_CONFIG}"
+				echo "Deleting existing configuration directory."
+				rm -rf "${SIMPLEBACKUP_CONFIG_DIR}"
 				if [[ ${?} -ne 0 ]]; then
-					echo "Could not delete SimpleBackup configuration file ${SIMPLEBACKUP_CONFIG}. Aborting."
+					echo "Could not delete configuration directory. Aborting."
 					return 1
 				fi
 				;;
 			n|N)
-				echo "Config cancelled by user. Aborting."
-				return 0
+				echo "Configuration cancelled by user. Aborting."
+				return 1
 				;;
 			*)
 				echo "Invalid option \"${yes_no}\". Please explicitly use [Y/N]. Aborting."
@@ -67,43 +49,114 @@ sbup-config() {
 		esac
 	fi
 
-	# Set empty variables and write out the config file.
-	echo "Creating SimpleBackup configuration file ${SIMPLEBACKUP_CONFIG}."
-
-	unset SIMPLEBACKUP_SOURCES
-	unset SIMPLEBACKUP_DESTINATIONS
-
-	declare -gA SIMPLEBACKUP_SOURCES=()
-	declare -gA SIMPLEBACKUP_DESTINATIONS=()
-
-	sbup-writeconfig
+	# Create the directory.
+	echo "Creating SimpleBackup configuration directory \"${SIMPLEBACKUP_CONFIG_DIR}\"."
+	mkdir -p "${SIMPLEBACKUP_CONFIG_DIR}"
 	if [[ ${?} -ne 0 ]]; then
+		echo "Error creating configuration directory. Aborting."
 		return 1;
 	fi
 }
 
 
-# Attempts to load values from the SimpleBackup configuration.
+# Write a configuration file for a specified key. Assumes that values have already been loaded.
+# Arguments:
+#   $1 - The key of the configuration to write out.
+#   $2 - The source filepath.
+#   $3 - The destination filepath.
+#   $4 - Any exclusionary filters (an array).
+sbup-writeconfig() {
+	# Get the key, abort if not provided.
+	local key="${1}"
+	if [[ -z "${key// }" ]]; then
+		echo "Key not provided. Aborting."
+		return 1
+	fi
+	local config_file="${SIMPLEBACKUP_CONFIG_DIR}/${key}"
+
+	# Get the source, abort if not provided.
+	local source="${2}"
+	if [[ -z "${source// }" ]]; then
+		echo "Source not provided. Aborting."
+		return 1
+	fi
+
+	# Get the destination, abort if not provided.
+	local destination="${3}"
+	if [[ -z "${destination// }" ]]; then
+		echo "Destination not provided. Aborting."
+		return 1
+	fi
+
+	cat <<EOF > "${config_file}"
+#!bin/bash
+# Configuration values for the SimpleBackup script.
+
+SIMPLEBACKUP_SOURCE="${source}"
+SIMPLEBACKUP_DESTINATION="${destination}"
+EOF
+
+	if [[ ${?} -ne 0 ]]; then
+		echo "Error while writing configuration file ${config_file}. Aborting."
+		return 1;
+	fi
+}
+
+
+# Load the a configuration of a specified key.
+# Arguments:
+#   $1 - The key of the configuration to load.
 sbup-loadconfig() {
-	if [[ ! -f "${SIMPLEBACKUP_CONFIG}" ]]; then
-		echo "No SimpleBackup configuration file ${SIMPLEBACKUP_CONFIG}. Please run sbup-config. Aborting."
+	# Get the key, abort if not provided.
+	local key="${1}"
+	if [[ -z "${key// }" ]]; then
+		echo "Key not provided. Aborting."
+		return 1
+	fi
+	local config_file="${SIMPLEBACKUP_CONFIG_DIR}/${key}"
+
+	if [[ ! -d "${SIMPLEBACKUP_CONFIG_DIR}" ]]; then
+		echo "SimpleBackup configuration directory \"${SIMPLEBACKUP_CONFIG_DIR}\" not found. Please run sbup-config. Aborting."
 		return 1;
 	fi
-	source "${SIMPLEBACKUP_CONFIG}"
+	if [[ ! -f "${config_file}" ]]; then
+		echo "SimpleBackup configuration file \"${config_file}\" not found. Aborting."
+		return 1;
+	fi
+	source "${config_file}"
 	if [[ ${?} -ne 0 ]]; then
-		echo "Error while sourcing SimpleBackup configuration file ${SIMPLEBACKUP_CONFIG}. Aborting."
+		echo "Error while sourcing SimpleBackup configuration file \"${config_file}\". Aborting."
+		return 1;
+	fi
+	if [[ -z "${SIMPLEBACKUP_SOURCE// }" ]]; then
+		echo "No source found for key \"${key}\". Aborting."
+		return 1;
+	fi
+	if [[ -z "${SIMPLEBACKUP_DESTINATION// }" ]]; then
+		echo "No destination found for key \"${key}\". Aborting."
 		return 1;
 	fi
 }
 
 
-# Show the configuration details for SimpleBackup.
+# Show the configuration of a specified key.
+# Arguments:
+#   $1 - The key of the configuration to show.
 sbup-showconfig() {
-	sbup-loadconfig
+	# Get the key, abort if not provided.
+	local key="${1}"
+	if [[ -z "${key// }" ]]; then
+		echo "Key not provided. Aborting."
+		return 1
+	fi
+	local config_file="${SIMPLEBACKUP_CONFIG_DIR}/${key}"
+
+	sbup-loadconfig "${key}"
 	if [[ ${?} -ne 0 ]]; then
 		return 1;
 	fi
-	cat "${SIMPLEBACKUP_CONFIG}"
+
+	cat "${config_file}"
 }
 
 
@@ -111,32 +164,36 @@ sbup-showconfig() {
 # Arguments:
 #   $1 - The name of the key to add to the configuration.
 sbup-add() {
-	sbup-loadconfig
-	if [[ ${?} -ne 0 ]]; then
-		return 1;
-	fi
-
-	local add_key="${1}"
-
-	# Abort if no key was provided.
-	if [[ -z "${add_key// }" ]]; then
+	# Get the key, abort if not provided.
+	local key="${1}"
+	if [[ -z "${key// }" ]]; then
 		echo "Key not provided. Aborting."
 		return 1
 	fi
+	
+	local config_file="${SIMPLEBACKUP_CONFIG_DIR}/${key}"
+
+	if [[ ! -d "${SIMPLEBACKUP_CONFIG_DIR}" ]]; then
+		echo "SimpleBackup configuration directory \"${SIMPLEBACKUP_CONFIG_DIR}\" not found. Please run sbup-config. Aborting."
+		return 1;
+	fi
 
 	# Check if the user wants to overwrite an existing key.
-	if [[ -v SIMPLEBACKUP_SOURCES["${add_key}"] || -v SIMPLEBACKUP_DESTINATIONS["${add_key}"] ]]; then
+	if [[ -f "${config_file}" ]]; then
 		local yes_no
-		read -p "SimpleBackup configuration for key \"${add_key}\" already exists. Overwrite [Y/N]? " -n 1 -r yes_no
+		read -p "SimpleBackup configuration for key \"${key}\" already exists. Overwrite [Y/N]? " -n 1 -r yes_no
 		echo
 		case "${yes_no}" in
 			y|Y)
-				unset SIMPLEBACKUP_SOURCES["${add_key}"]
-				unset SIMPLEBACKUP_DESTINATIONS["${add_key}"]
+				rm -rf "${config_file}"
+				if [[ ${?} -ne 0 ]]; then
+					echo "Unable to remove existing configuration. Aborting."
+					return 1;
+				fi
 				;;
 			n|N)
-				echo "Adding key \"${add_key}\" cancelled by user. Aborting."
-				return 0
+				echo "Adding key \"${key}\" cancelled by user. Aborting."
+				return 1
 				;;
 			*)
 				echo "Invalid option \"${yes_no}\". Please explicitly use [Y/N]. Aborting."
@@ -145,40 +202,35 @@ sbup-add() {
 		esac
 	fi
 
-	local add_source
-	read -p "Enter the source directory for \"${add_key}\": " add_source
-	
+	local source
+	read -p "Enter the source directory for \"${key}\": " source
 	# Abort if no source was provided.
-	if [[ -z "${add_source// }" ]]; then
+	if [[ -z "${source// }" ]]; then
 		echo "New source not provided. Aborting."
 		return 1
 	fi
 
-	local add_destination
-	read -p "Enter the destination directory for \"${add_key}\": " add_destination
-	
+	local destination
+	read -p "Enter the destination directory for \"${key}\": " destination
 	# Abort if no destination was provided.
-	if [[ -z "${add_destination// }" ]]; then
+	if [[ -z "${destination// }" ]]; then
 		echo "New destination not provided. Aborting."
 		return 1
 	fi
 
     # Abort if the user tries to point the source and destination to the same place.
 	# Note, we don't actually enforce that the source and destination exist at this point in time.
-	if [[ "${add_source}" -ef "${add_destination}" || "${add_source}" == "${add_destination}" ]]; then
-		echo "Source \"${add_source}\" and destination are identical. Aborting."
+	if [[ "${source}" -ef "${destination}" || "${source}" == "${destination}" ]]; then
+		echo "Source \"${source}\" and destination are identical. Aborting."
 		return 1
 	fi
 
-	SIMPLEBACKUP_SOURCES["${add_key}"]="${add_source}"
-	SIMPLEBACKUP_DESTINATIONS["${add_key}"]="${add_destination}"
-
-	sbup-writeconfig
+	sbup-writeconfig "${key}" "${source}" "${destination}"
 	if [[ ${?} -ne 0 ]]; then
 		return 1;
 	fi
 	
-	echo "Key \"${add_key}\" added to SimpleBackup configuration."
+	echo "Key \"${key}\" added to SimpleBackup configuration."
 }
 
 
@@ -186,32 +238,32 @@ sbup-add() {
 # Arguments:
 #   $1 - The name of the key to remove from the configuration.
 sbup-remove() {
-	sbup-loadconfig
-	if [[ ${?} -ne 0 ]]; then
-		return 1;
-	fi
-
-	local remove_key="${1}"
-
-	# Abort if no key was provided.
-	if [[ -z "${remove_key// }" ]]; then
+	# Get the key, abort if not provided.
+	local key="${1}"
+	if [[ -z "${key// }" ]]; then
 		echo "Key not provided. Aborting."
 		return 1
 	fi
+	
+	local config_file="${SIMPLEBACKUP_CONFIG_DIR}/${key}"
 
+	if [[ ! -d "${SIMPLEBACKUP_CONFIG_DIR}" ]]; then
+		echo "SimpleBackup configuration directory \"${SIMPLEBACKUP_CONFIG_DIR}\" not found. Please run sbup-config. Aborting."
+		return 1;
+	fi
+	
 	# If the provided key exists, remove it. Otherwise terminate.
-	if [[ -v SIMPLEBACKUP_SOURCES["${remove_key}"] || -v SIMPLEBACKUP_DESTINATIONS["${remove_key}"] ]]; then
-		unset SIMPLEBACKUP_SOURCES["${remove_key}"]
-		unset SIMPLEBACKUP_DESTINATIONS["${remove_key}"]
-		sbup-writeconfig
-		if [[ ${?} -ne 0 ]]; then
-			return 1;
-		fi
-		echo "Key \"${remove_key}\" removed from SimpleBackup configuration."
-	else
-		echo "Key \"${remove_key}\" not found in SimpleBackup configuration. Aborting."
+	if [[ ! -f "${config_file}" ]]; then
+		echo "Key \"${key}\" not found in SimpleBackup configuration. Aborting."
 		return 1
 	fi
+
+	rm -rf "${config_file}"
+	if [[ ${?} -ne 0 ]]; then
+		echo "Unable to remove existing configuration. Aborting."
+		return 1;
+	fi
+	echo "Key \"${key}\" removed from SimpleBackup configuration."
 }
 
 
@@ -219,47 +271,37 @@ sbup-remove() {
 # Arguments:
 #   $1 - The key whose configuration will be used to save.
 sbup-save() {
-	sbup-loadconfig
-	if [[ ${?} -ne 0 ]]; then
-		return 1;
-	fi
-
-	local save_key="${1}"
-
-	# Abort if no key was provided.
-	if [[ -z "${save_key// }" ]]; then
+	# Get the key, abort if not provided.
+	local key="${1}"
+	if [[ -z "${key// }" ]]; then
 		echo "Key not provided. Aborting."
 		return 1
 	fi
 
-	# If the key doesn't exist then return.
-	if [[ ! -v SIMPLEBACKUP_SOURCES["${save_key}"] || ! -v SIMPLEBACKUP_DESTINATIONS["${save_key}"] ]]; then
-		echo "Key \"${save_key}\" not found in SimpleBackup configuration. Aborting."
-		return 1
+	sbup-loadconfig "${key}"
+	if [[ ${?} -ne 0 ]]; then
+		return 1;
 	fi
-
-	local save_source="${SIMPLEBACKUP_SOURCES["${save_key}"]}"
-	local save_destination="${SIMPLEBACKUP_DESTINATIONS["${save_key}"]}"
 
 	# If either the source or destination does not exist at this point in time, abort.
-	if [[ ! -d "${save_source}" ]]; then
-		echo "Save source \"${save_source}\" is not a directory. Aborting."
+	if [[ ! -d "${SIMPLEBACKUP_SOURCE}" ]]; then
+		echo "Save source \"${SIMPLEBACKUP_SOURCE}\" is not a directory. Aborting."
 		return 1
 	fi
-	if [[ ! -d "${save_destination}" ]]; then
-		echo "Save destination \"${save_destination}\" is not a directory. Aborting."
+	if [[ ! -d "${SIMPLEBACKUP_DESTINATION}" ]]; then
+		echo "Save destination \"${SIMPLEBACKUP_DESTINATION}\" is not a directory. Aborting."
 		return 1
 	fi
 
     # Abort if the source and destination point to the same place.
-	if [[ "${save_source}" -ef "${save_destination}" ]]; then
-		echo "Source \"${save_source}\" and destination are identical. Aborting."
+	if [[ "${SIMPLEBACKUP_SOURCE}" -ef "${SIMPLEBACKUP_DESTINATION}" ]]; then
+		echo "Source \"${SIMPLEBACKUP_SOURCE}\" and destination are identical. Aborting."
 		return 1
 	fi
 
-	echo "Saving files for configuration \"${save_key}\"."
-	rsync -a --delete --exclude .git "${save_source}/" "${save_destination}/"
-	if [[ "${?}" -ne "0" ]]; then
+	echo "Saving files for configuration \"${key}\"."
+	rsync -a --delete --exclude .git "${SIMPLEBACKUP_SOURCE}/" "${SIMPLEBACKUP_DESTINATION}/"
+	if [[ ${?} -ne 0 ]]; then
 		echo "Saving files failed. Aborting."
 		return 1
 	fi
@@ -270,47 +312,37 @@ sbup-save() {
 # Arguments:
 #   $1 - The key whose configuration will be used to load.
 sbup-load() {
-	sbup-loadconfig
-	if [[ ${?} -ne 0 ]]; then
-		return 1;
-	fi
-
-	local load_key="${1}"
-
-	# Abort if no key was provided.
-	if [[ -z "${load_key// }" ]]; then
+	# Get the key, abort if not provided.
+	local key="${1}"
+	if [[ -z "${key// }" ]]; then
 		echo "Key not provided. Aborting."
 		return 1
 	fi
 
-	# If the key doesn't exist then return.
-	if [[ ! -v SIMPLEBACKUP_SOURCES["${load_key}"] || ! -v SIMPLEBACKUP_DESTINATIONS["${load_key}"] ]]; then
-		echo "Key \"${load_key}\" not found in SimpleBackup configuration. Aborting."
-		return 1
+	sbup-loadconfig "${key}"
+	if [[ ${?} -ne 0 ]]; then
+		return 1;
 	fi
-
-	local load_source="${SIMPLEBACKUP_SOURCES["${load_key}"]}"
-	local load_destination="${SIMPLEBACKUP_DESTINATIONS["${load_key}"]}"
 
 	# If either the source or destination does not exist at this point in time, abort.
-	if [[ ! -d "${load_source}" ]]; then
-		echo "Save source \"${load_source}\" is not a directory. Aborting."
+	if [[ ! -d "${SIMPLEBACKUP_SOURCE}" ]]; then
+		echo "Save source \"${SIMPLEBACKUP_SOURCE}\" is not a directory. Aborting."
 		return 1
 	fi
-	if [[ ! -d "${load_destination}" ]]; then
-		echo "Save destination \"${load_destination}\" is not a directory. Aborting."
+	if [[ ! -d "${SIMPLEBACKUP_DESTINATION}" ]]; then
+		echo "Save destination \"${SIMPLEBACKUP_DESTINATION}\" is not a directory. Aborting."
 		return 1
 	fi
 
     # Abort if the source and destination point to the same place.
-	if [[ "${load_source}" -ef "${load_destination}" ]]; then
-		echo "Source \"${load_source}\" and destination are identical. Aborting."
+	if [[ "${SIMPLEBACKUP_SOURCE}" -ef "${SIMPLEBACKUP_DESTINATION}" ]]; then
+		echo "Source \"${SIMPLEBACKUP_SOURCE}\" and destination are identical. Aborting."
 		return 1
 	fi
 
-	echo "Loading files for configuration \"${load_key}\"."
-	rsync -a --delete --exclude .git "${load_destination}/" "${load_source}/"
-	if [[ "${?}" -ne "0" ]]; then
+	echo "Loading files for configuration \"${key}\"."
+	rsync -a --delete --exclude .git "${SIMPLEBACKUP_DESTINATION}/" "${SIMPLEBACKUP_SOURCE}/"
+	if [[ ${?} -ne 0 ]]; then
 		echo "Loading files failed. Aborting."
 		return 1
 	fi
