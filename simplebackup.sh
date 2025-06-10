@@ -119,10 +119,6 @@ sbup-loadconfig() {
 		echo "No source found for key \"${key}\". Aborting."
 		return 1;
 	fi
-	if [[ -z "${SIMPLEBACKUP_DESTINATION// }" ]]; then
-		echo "No destination found for key \"${key}\". Aborting."
-		return 1;
-	fi
 }
 
 
@@ -136,10 +132,15 @@ sbup-showconfig() {
 		echo "Key not provided. Aborting."
 		return 1
 	fi
-	local config_file="${SIMPLEBACKUP_CONFIG_DIR}/${key}"
 
-	sbup-loadconfig "${key}"
-	if [[ ${?} -ne 0 ]]; then
+	local config_file="${SIMPLEBACKUP_CONFIG_DIR}/${key}"
+	
+	if [[ ! -d "${SIMPLEBACKUP_CONFIG_DIR}" ]]; then
+		echo "SimpleBackup configuration directory \"${SIMPLEBACKUP_CONFIG_DIR}\" not found. Please run sbup-config. Aborting."
+		return 1;
+	fi
+	if [[ ! -f "${config_file}" ]]; then
+		echo "SimpleBackup configuration file \"${config_file}\" not found. Aborting."
 		return 1;
 	fi
 
@@ -215,7 +216,7 @@ sbup-add() {
 	unset SIMPLEBACKUP_FILTERS
 	declare -g SIMPLEBACKUP_SOURCE="${source}"
 	declare -g SIMPLEBACKUP_DESTINATION="${destination}"
-	declare -ga SIMPLEBACKUP_FILTERS=()
+	declare -gA SIMPLEBACKUP_FILTERS=()
 
 	sbup-writeconfig "${key}"
 	if [[ ${?} -ne 0 ]]; then
@@ -256,6 +257,75 @@ sbup-remove() {
 		return 1;
 	fi
 	echo "Key \"${key}\" removed from SimpleBackup configuration."
+}
+
+
+# Add one or more filters to a key's configuration. Filters use the same syntax
+# as rsync's --exclude (because that's what we're passing it to under the hood,
+# duh). Duplicate entries are ignored.
+# Arguments:
+#   $1 - The name of the key to add filters for.
+#   $2 .. $n - The filter expressions to add.
+sbup-addfilters() {
+	# Get the key, abort if not provided.
+	local key="${1}"
+	if [[ -z "${key// }" ]]; then
+		echo "Key not provided. Aborting."
+		return 1
+	fi
+	
+	sbup-loadconfig "${key}"
+	if [[ ${?} -ne 0 ]]; then
+		return 1;
+	fi
+
+	# Bump out the key and then process all the remaining arguments as filter expressions.
+	shift
+	while (($#)) ; do
+		local filter="${1}"
+		shift
+		if [[ -v SIMPLEBACKUP_FILTERS["${filter}"] ]]; then
+			echo "Skipping duplicate filter \"${filter}\"."
+			continue
+		fi
+		SIMPLEBACKUP_FILTERS["${filter}"]=""
+	done
+
+	sbup-writeconfig "${key}"
+}
+
+
+# Remove one or more filters from a key's configuration. Non-present filter
+# expressions are ignored.
+# Arguments:
+#   $1 - The name of the key to remove from the configuration.
+#   $2 .. $n - The filter expressions to remove.
+sbup-removefilters() {
+	# Get the key, abort if not provided.
+	local key="${1}"
+	if [[ -z "${key// }" ]]; then
+		echo "Key not provided. Aborting."
+		return 1
+	fi
+	
+	sbup-loadconfig "${key}"
+	if [[ ${?} -ne 0 ]]; then
+		return 1;
+	fi
+
+	# Bump out the key and then process all the remaining arguments as filter expressions.
+	shift
+	while (($#)) ; do
+		local filter="${1}"
+		shift
+		if [[ ! -v SIMPLEBACKUP_FILTERS["${filter}"] ]]; then
+			echo "Skipping non-present filter \"${filter}\"."
+			continue
+		fi
+		unset SIMPLEBACKUP_FILTERS["${filter}"]
+	done
+
+	sbup-writeconfig "${key}"
 }
 
 
