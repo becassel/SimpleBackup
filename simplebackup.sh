@@ -62,6 +62,18 @@ sbup-config() {
 # Write a configuration file for a specified key. Assumes that values have
 # already been loaded for the following constants: SIMPLEBACKUP_SOURCE,
 # SIMPLEBACKUP_DESTINATION, SIMPLEBACKUP_FILTERS.
+#
+# SIMPLEBACKUP_SOURCE is a path to the source folder that will be copied from
+# during save and copied to during load.
+#
+# SIMPLEBACKUP_DESTINATION is a path to the destination folder that will be
+# copied to during save and copied from during load.
+#
+# SIMPLEBACKUP_FILTERS are a list of rsync-patterned exclude filters that will
+# be applied to the copy. It will prevent copying / deleting any files matching
+# these filter patterns. This is stored as an associative array where each key
+# is one of the filters (with a blank corresponding value).
+#
 # Arguments:
 #   $1 - The key of the configuration to write out.
 sbup-writeconfig() {
@@ -110,6 +122,7 @@ sbup-loadconfig() {
 		echo "SimpleBackup configuration file \"${config_file}\" not found. Aborting."
 		return 1;
 	fi
+
 	source "${config_file}"
 	if [[ ${?} -ne 0 ]]; then
 		echo "Error while sourcing SimpleBackup configuration file \"${config_file}\". Aborting."
@@ -134,7 +147,6 @@ sbup-showconfig() {
 	fi
 
 	local config_file="${SIMPLEBACKUP_CONFIG_DIR}/${key}"
-	
 	if [[ ! -d "${SIMPLEBACKUP_CONFIG_DIR}" ]]; then
 		echo "SimpleBackup configuration directory \"${SIMPLEBACKUP_CONFIG_DIR}\" not found. Please run sbup-config. Aborting."
 		return 1;
@@ -362,7 +374,13 @@ sbup-save() {
 	fi
 
 	echo "Saving files for configuration \"${key}\"."
-	rsync -a --delete --exclude .git "${SIMPLEBACKUP_SOURCE}/" "${SIMPLEBACKUP_DESTINATION}/"
+
+	# Turn the list of filters (i.e. each key in the associative array) into an
+	# array of exlucde arguments.
+	local filters=("${!SIMPLEBACKUP_FILTERS[@]}")
+	filters=("${filters[@]/#/--exclude=}")
+
+	rsync -a --delete "${filters[@]}" "${SIMPLEBACKUP_SOURCE}/" "${SIMPLEBACKUP_DESTINATION}/"
 	if [[ ${?} -ne 0 ]]; then
 		echo "Saving files failed. Aborting."
 		return 1
@@ -403,7 +421,13 @@ sbup-load() {
 	fi
 
 	echo "Loading files for configuration \"${key}\"."
-	rsync -a --delete --exclude .git "${SIMPLEBACKUP_DESTINATION}/" "${SIMPLEBACKUP_SOURCE}/"
+	
+	# Turn the list of filters (i.e. each key in the associative array) into an
+	# array of exlucde arguments.
+	local filters=("${!SIMPLEBACKUP_FILTERS[@]}")
+	filters=("${filters[@]/#/--exclude=}")
+	
+	rsync -a --delete "${filters[@]}" "${SIMPLEBACKUP_DESTINATION}/" "${SIMPLEBACKUP_SOURCE}/"
 	if [[ ${?} -ne 0 ]]; then
 		echo "Loading files failed. Aborting."
 		return 1

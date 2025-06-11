@@ -19,7 +19,7 @@ this program.  If not, see <http://www.gnu.org/licenses/>.
 
 A simple script for backing up and restoring data from named directories.
 
-# Setup and Configuration
+## Setup and Configuration
 
 The features provided in this script are all plain-old Bash. Several features
 use newer Bash functionalities (e.g. associative arrays and quoted variable
@@ -53,20 +53,18 @@ script. SimpleBackup will look for its configuration files in this directory
 sbup-config
 ```
 
-# Use
+## Adding and Removing Keys
 
 SimpleBackup adds configuration files using keys. To create a new configuration
-file with a given key, use the add command:
+file with a given key, source path, and destination path, use the add command:
 
 ```
-sbup-add mykey
+sbup-add mykey source destination
 ```
 
-Running this command will ask you to configure the key, e.g. by adding source
-and destination directories. Further interactions with the script will use this
-key to adjust the configuration, move files, etc. If the key already exists at
-creation time, you will be asked to either overwrite it (deleting all previous
-contents) or abort.
+Further interactions with the script will use this key to adjust the
+configuration, move files, etc. If the key already exists at creation time, you
+will be asked to either overwrite it (deleting all previous contents) or abort.
 
 You can remove an existing key and all of its associated configurations with
 the following command:
@@ -82,7 +80,7 @@ showconfig command:
 sbup-showconfig mykey
 ```
 
-## Backing up Files
+## Saving Files
 
 To create a backup of files for a configured key, run:
 
@@ -104,4 +102,23 @@ sbup-load mykey
 Loading is a destructive operation. Files that are not present in the
 destination directory will be removed from the source directory, unless they
 match a filter pattern.
+
+## Adding and Removing Filters
+
+When saving and restoring files, SimpleBackup ignores files present in the
+filters list (i.e. it will not copy files from the source, nor delete files
+from the destination, if they match a pattern on the filter list). To add
+filters, run:
+
+```
+sbup-addfilters mykey filter1 filter2 ...
+```
+
+To remove filters, run:
+
+```
+sbup-removefilters mykey filter1 filter2 ...
+```
+
+Filters use the same syntax pattern as exclude patterns for rsync.
 
