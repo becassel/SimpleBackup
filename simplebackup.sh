@@ -84,14 +84,25 @@ sbup-writeconfig() {
 		return 1
 	fi
 	local config_file="${SIMPLEBACKUP_CONFIG_DIR}/${key}"
+
+	# The `source` command makes variables local-only by default. That means
+	# that the loadconfig command wouldn't actually load anything if the
+	# variables didn't already exist as global. To avoid this, we save them
+	# with alternate names, and then reset the global variables in loadconfig.
+	local SIMPLEBACKUP_CONFIG_SOURCE="${SIMPLEBACKUP_SOURCE}"
+	local SIMPLEBACKUP_CONFIG_DESTINATION="${SIMPLEBACKUP_DESTINATION}"
+	declare -A SIMPLEBACKUP_CONFIG_FILTERS=()
+	for key in "${!SIMPLEBACKUP_FILTERS[@]}"; do
+		SIMPLEBACKUP_CONFIG_FILTERS[${key}]="${SIMPLEBACKUP_FILTERS[${key}]}"
+	done
 	
 	cat <<EOF > "${config_file}"
 #!bin/bash
 # Configuration values for the SimpleBackup script.
 
-$(declare -p SIMPLEBACKUP_SOURCE)
-$(declare -p SIMPLEBACKUP_DESTINATION)
-$(declare -p SIMPLEBACKUP_FILTERS)
+$(declare -p SIMPLEBACKUP_CONFIG_SOURCE)
+$(declare -p SIMPLEBACKUP_CONFIG_DESTINATION)
+$(declare -p SIMPLEBACKUP_CONFIG_FILTERS)
 
 EOF
 
@@ -124,12 +135,32 @@ sbup-loadconfig() {
 	fi
 
 	source "${config_file}"
+
 	if [[ ${?} -ne 0 ]]; then
 		echo "Error while sourcing SimpleBackup configuration file \"${config_file}\". Aborting."
 		return 1;
 	fi
+
+	# The `source` command makes variables local-only by default. That means
+	# that this command wouldn't actually load anything if the variables didn't
+	# already exist as global. To avoid this, we save them with alternate
+	# names, and then reset the global variables here.
+	unset SIMPLEBACKUP_SOURCE
+	unset SIMPLEBACKUP_DESTINATION
+	unset SIMPLEBACKUP_FILTERS
+	declare -g SIMPLEBACKUP_SOURCE="${SIMPLEBACKUP_CONFIG_SOURCE}"
+	declare -g SIMPLEBACKUP_DESTINATION="${SIMPLEBACKUP_CONFIG_DESTINATION}"
+	declare -gA SIMPLEBACKUP_FILTERS=()
+	for key in "${!SIMPLEBACKUP_CONFIG_FILTERS[@]}"; do
+		SIMPLEBACKUP_FILTERS[${key}]="${SIMPLEBACKUP_CONFIG_FILTERS[${key}]}"
+	done
+
 	if [[ -z "${SIMPLEBACKUP_SOURCE// }" ]]; then
 		echo "No source found for key \"${key}\". Aborting."
+		return 1;
+	fi
+	if [[ -z "${SIMPLEBACKUP_DESTINATION// }" ]]; then
+		echo "No destination found for key \"${key}\". Aborting."
 		return 1;
 	fi
 }
@@ -191,8 +222,9 @@ sbup-add() {
 		return 1;
 	fi
 
-	# Abort if the user tries to point the source and destination to the same place.
-	# Note, we don't actually enforce that the source and destination exist at this point in time.
+	# Abort if the user tries to point the source and destination to the same
+	# place. Note, we don't actually enforce that the source and destination
+	# exist at this point in time.
 	if [[ "${source}" -ef "${destination}" || "${source}" == "${destination}" ]]; then
 		echo "Source \"${source}\" and destination are identical. Aborting."
 		return 1
@@ -291,7 +323,8 @@ sbup-addfilters() {
 		return 1;
 	fi
 
-	# Bump out the key and then process all the remaining arguments as filter expressions.
+	# Bump out the key and then process all the remaining arguments as filter
+	# expressions.
 	shift
 	while (($#)) ; do
 		local filter="${1}"
@@ -325,7 +358,8 @@ sbup-removefilters() {
 		return 1;
 	fi
 
-	# Bump out the key and then process all the remaining arguments as filter expressions.
+	# Bump out the key and then process all the remaining arguments as filter
+	# expressions.
 	shift
 	while (($#)) ; do
 		local filter="${1}"
@@ -357,7 +391,8 @@ sbup-save() {
 		return 1;
 	fi
 
-	# If either the source or destination does not exist at this point in time, abort.
+	# If either the source or destination does not exist at this point in time,
+	# abort.
 	if [[ ! -d "${SIMPLEBACKUP_SOURCE}" ]]; then
 		echo "Save source \"${SIMPLEBACKUP_SOURCE}\" is not a directory. Aborting."
 		return 1
@@ -376,7 +411,7 @@ sbup-save() {
 	echo "Saving files for configuration \"${key}\"."
 
 	# Turn the list of filters (i.e. each key in the associative array) into an
-	# array of exlucde arguments.
+	# array of exclude arguments.
 	local filters=("${!SIMPLEBACKUP_FILTERS[@]}")
 	filters=("${filters[@]/#/--exclude=}")
 
@@ -404,7 +439,8 @@ sbup-load() {
 		return 1;
 	fi
 
-	# If either the source or destination does not exist at this point in time, abort.
+	# If either the source or destination does not exist at this point in time,
+	# abort.
 	if [[ ! -d "${SIMPLEBACKUP_SOURCE}" ]]; then
 		echo "Save source \"${SIMPLEBACKUP_SOURCE}\" is not a directory. Aborting."
 		return 1
@@ -423,7 +459,7 @@ sbup-load() {
 	echo "Loading files for configuration \"${key}\"."
 	
 	# Turn the list of filters (i.e. each key in the associative array) into an
-	# array of exlucde arguments.
+	# array of exclude arguments.
 	local filters=("${!SIMPLEBACKUP_FILTERS[@]}")
 	filters=("${filters[@]/#/--exclude=}")
 	
