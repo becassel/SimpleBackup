@@ -190,7 +190,7 @@ sbup-add() {
 		echo "SimpleBackup configuration directory \"${SIMPLEBACKUP_CONFIG_DIR}\" not found. Please run sbup-config. Aborting."
 		return 1;
 	fi
-    
+
 	# Abort if the user tries to point the source and destination to the same place.
 	# Note, we don't actually enforce that the source and destination exist at this point in time.
 	if [[ "${source}" -ef "${destination}" || "${source}" == "${destination}" ]]; then
@@ -367,7 +367,7 @@ sbup-save() {
 		return 1
 	fi
 
-    # Abort if the source and destination point to the same place.
+	# Abort if the source and destination point to the same place.
 	if [[ "${SIMPLEBACKUP_SOURCE}" -ef "${SIMPLEBACKUP_DESTINATION}" ]]; then
 		echo "Source \"${SIMPLEBACKUP_SOURCE}\" and destination are identical. Aborting."
 		return 1
@@ -414,7 +414,7 @@ sbup-load() {
 		return 1
 	fi
 
-    # Abort if the source and destination point to the same place.
+	# Abort if the source and destination point to the same place.
 	if [[ "${SIMPLEBACKUP_SOURCE}" -ef "${SIMPLEBACKUP_DESTINATION}" ]]; then
 		echo "Source \"${SIMPLEBACKUP_SOURCE}\" and destination are identical. Aborting."
 		return 1
