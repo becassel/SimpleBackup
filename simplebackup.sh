@@ -93,7 +93,7 @@ sbup-writeconfig() {
 	local SIMPLEBACKUP_CONFIG_DESTINATION="${SIMPLEBACKUP_DESTINATION}"
 	declare -A SIMPLEBACKUP_CONFIG_FILTERS=()
 	for filter_key in "${!SIMPLEBACKUP_FILTERS[@]}"; do
-		SIMPLEBACKUP_CONFIG_FILTERS[${filter_key}]="${SIMPLEBACKUP_FILTERS[${filter_key}]}"
+		SIMPLEBACKUP_CONFIG_FILTERS["${filter_key}"]="${SIMPLEBACKUP_FILTERS[${filter_key}]}"
 	done
 	
 	cat <<EOF > "${config_file}"
@@ -152,7 +152,7 @@ sbup-loadconfig() {
 	declare -g SIMPLEBACKUP_DESTINATION="${SIMPLEBACKUP_CONFIG_DESTINATION}"
 	declare -gA SIMPLEBACKUP_FILTERS=()
 	for filter_key in "${!SIMPLEBACKUP_CONFIG_FILTERS[@]}"; do
-		SIMPLEBACKUP_FILTERS[${filter_key}]="${SIMPLEBACKUP_CONFIG_FILTERS[${filter_key}]}"
+		SIMPLEBACKUP_FILTERS["${filter_key}"]="${SIMPLEBACKUP_CONFIG_FILTERS[${filter_key}]}"
 	done
 
 	if [[ -z "${SIMPLEBACKUP_SOURCE// }" ]]; then
