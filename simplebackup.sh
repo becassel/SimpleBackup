@@ -442,11 +442,11 @@ sbup-load() {
 	# If either the source or destination does not exist at this point in time,
 	# abort.
 	if [[ ! -d "${SIMPLEBACKUP_SOURCE}" ]]; then
-		echo "Save source \"${SIMPLEBACKUP_SOURCE}\" is not a directory. Aborting."
+		echo "Load source \"${SIMPLEBACKUP_SOURCE}\" is not a directory. Aborting."
 		return 1
 	fi
 	if [[ ! -d "${SIMPLEBACKUP_DESTINATION}" ]]; then
-		echo "Save destination \"${SIMPLEBACKUP_DESTINATION}\" is not a directory. Aborting."
+		echo "Load destination \"${SIMPLEBACKUP_DESTINATION}\" is not a directory. Aborting."
 		return 1
 	fi
 
