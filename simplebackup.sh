@@ -1,4 +1,4 @@
-#!bin/bash
+#!/bin/bash
 
 # simplebackup.sh. A simple script for backing up and restoring data from named
 # directories.
@@ -97,7 +97,7 @@ sbup-writeconfig() {
 	done
 	
 	cat <<EOF > "${config_file}"
-#!bin/bash
+#!/bin/bash
 # Configuration values for the SimpleBackup script.
 
 $(declare -p SIMPLEBACKUP_CONFIG_SOURCE)
